@@ -32,6 +32,32 @@ def check_move_higher(symbol):
     else:
         print(f"{symbol} hasn't moved more than 30% higher in the past 3 months.")
 
+def is_10_below_20(ticker):
+  ticker['MA10'] = ticker['Close'].rolling(window=10).mean()
+  ticker['MA20'] = ticker['Close'].rolling(window=20).mean()
+  ticker['10_below_20'] = ticker['MA10'] < ticker['MA20']
+  last_10 = ticker.tail(10)
+  num_true = last_10['10_below_20'].sum()
+  num_false = len(last_10) - num_true
+  # Check if number of True is more than False
+  if num_true > num_false:
+      #10 days are below 20 days")
+    return 1
+  else:
+    #10 days are not below 20 days
+    return 0
+
+def is_higher_low(ticker):
+  ticker['higher_low'] = ticker['Low'].tail(5).diff() > 0
+  last_10 = ticker.tail(5)
+  num_true = last_10['higher_low'].sum()
+  num_false = len(last_10) - num_true
+  # Check if number of True is more than False
+  if num_true > num_false:
+    return 1
+  else:
+    return 0
+  
 def filter_stocks(ticker):
   # Increment the row count and print it
   dataframe.row_count += 1
@@ -42,15 +68,19 @@ def filter_stocks(ticker):
     hist = stock.history(period="2mo")
 
     if hist.shape[0] <= 22:
-      return pd.Series([None, None, None,  None,  None, None])
+      return None, None, None, None, None, None, None, None
 
     adr_pct_20_days = calculate_adr_20(hist.tail(20))
-    if adr_pct_20_days <= 5:
-        return pd.Series([None, None, None, None, None, None])
+    if adr_pct_20_days <= 1:
+        return None, None, None, None, None, None, None, None
 
     volume_dollars_1day = hist['Close'][0] * hist['Volume'][0] / 100
     # if volume_dollars_1day <= 3000:
     #   return pd.Series([None, None, None, None, None])
+    
+    # 10 days below 20 days -> no trading
+    is_10_below_20_mv_10_days = is_10_below_20(hist)
+    is_higher_low_5_days = is_higher_low(hist)
     
     avg_volume_10_days= stock.info['averageVolume10days']
     volume_cal= stock.info['volume']
@@ -62,9 +92,9 @@ def filter_stocks(ticker):
     
     percentage_change_3months = check_move_higher(ticker["Symbol"])
     
-    return adr_pct_20_days, volume_dollars_1day, price_growth_one_month, percentage_change_3months,avg_volume_10_days,volume_cal
+    return adr_pct_20_days, volume_dollars_1day, price_growth_one_month, percentage_change_3months, avg_volume_10_days, volume_cal, is_10_below_20_mv_10_days, is_higher_low_5_days
   except:
-    return pd.Series([None, None, None, None, None, None])
+    return None, None, None, None, None, None, None, None
   
   
 def scan(dataframe):
@@ -72,10 +102,8 @@ def scan(dataframe):
   # Initialize row_count attribute
   dataframe.row_count = 0
 
-  result_df = dataframe.apply(filter_stocks, axis=1)
-  result_df.columns = ['adr_pct_20_days', 'volume_dollars_1day', 'price_growth_one_month','move_higher_3_months_percent', 'avg_volume_10_days', 'volume_cal']
-  dataframe = pd.concat([dataframe, result_df], axis=1)
-  
+  dataframe[['adr_pct_20_days', 'volume_dollars_1day', 'price_growth_one_month','move_higher_3_months_percent', 'avg_volume_10_days', 'volume_cal', 'is_10_below_20_mv_10_days', 'is_higher_low_5_days']] = dataframe.apply(lambda row: filter_stocks(row), axis=1, result_type='expand')
+
   # Drop rows where adr_pct_20_days is None
   dataframe = dataframe[dataframe['adr_pct_20_days'].notna()]
   dataframe = dataframe[dataframe['volume_dollars_1day'].notna()]
@@ -90,10 +118,10 @@ def scan(dataframe):
   # Calculate the number of rows corresponding to the top 27% of the data
   top_27_percent = int(0.27 * len(sorted_df))
 
-  sorted_df.to_csv('scan.csv', index=False)
+  sorted_df.to_csv('data/scan.csv', index=False)
 
-dataframe = pd.read_csv("pre_scan.csv")
-dataframe = dataframe[dataframe["pre_scan"] < 170]
-dataframe = dataframe[dataframe["pre_scan"] != 0]
+dataframe = pd.read_csv("data/pre_scan.csv")
+dataframe = dataframe[dataframe["currentPrice"] < 170]
+dataframe = dataframe[dataframe["currentPrice"] != 0]
 scan(dataframe)
 # pre_scan()
