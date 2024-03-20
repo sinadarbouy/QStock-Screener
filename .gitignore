@@ -1,1 +1,4 @@
 test.py
+.DS_Store
+plots/*.png
+test.py
