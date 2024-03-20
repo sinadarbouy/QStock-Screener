@@ -71,7 +71,7 @@ def filter_stocks(ticker):
       return None, None, None, None, None, None, None, None
 
     adr_pct_20_days = calculate_adr_20(hist.tail(20))
-    if adr_pct_20_days <= 1:
+    if adr_pct_20_days <= 5:
         return None, None, None, None, None, None, None, None
 
     volume_dollars_1day = hist['Close'][0] * hist['Volume'][0] / 100
