@@ -15,7 +15,7 @@ You can install the required dependencies using pip:
 ```bash
 pip install pandas yfinance numpy
 ```
-### Pre-Scan
+## Pre-Scan
 
 The `pre_scan` function reads a NASDAQ CSV file to identify stocks. It specifically targets stocks from the United States and calculates their prices. These prices are later used to filter stocks based on account size. As this script is primarily used for initial data preparation, it typically doesn't need to be run frequently.
 
@@ -24,6 +24,8 @@ To execute the script, simply run:
 ```bash
 python pre-scan.py
 ```
+After execution, the script will generate a new CSV file named pre_scan.csv in the data directory containing the processed data.
+
 ## Scan
 ```bash
 python scan.py <max_price>
