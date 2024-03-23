@@ -1,40 +1,48 @@
 import pandas as pd
 from tabulate import tabulate
-import sched
-import time
 import threading
 import subprocess
 
+# Constants
+SCAN_INTERVAL_SECONDS = 900  # 15 minutes
+UPDATE_DISPLAY_INTERVAL_SECONDS = 1200  # 20 minutes
+TOP_PERCENTAGE = 0.27
+TOP_COUNT = 40
+COLUMNS_TO_DISPLAY = ['Symbol', 'price_growth_one_month', 'avg_volume_10_days', 'volume_cal']
 
-def update_dataframe():
-  dataframe = pd.read_csv("data/scan.csv")
-  dataframe['volume_dollars_1day'] = pd.to_numeric(dataframe['volume_dollars_1day'], errors='coerce')
-  dataframe['avg_volume_10_days'] = pd.to_numeric(dataframe['avg_volume_10_days'], errors='coerce')
-  dataframe['volume_cal'] = pd.to_numeric(dataframe['volume_cal'], errors='coerce')
-  dataframe_volume_dollars_1day_20000 = dataframe[dataframe['volume_dollars_1day'] > 20000]
-  dataframe_volume_dollars_1day_20000_is_10_below_20_mv_10_days_0 = dataframe_volume_dollars_1day_20000[dataframe_volume_dollars_1day_20000['is_10_below_20_mv_10_days'] ==0]
-  top_27_percent = int(0.27 * len(dataframe_volume_dollars_1day_20000_is_10_below_20_mv_10_days_0))
-  finaldataframe = dataframe_volume_dollars_1day_20000_is_10_below_20_mv_10_days_0.head(top_27_percent)
-  return finaldataframe[:40]
+# Function to read and preprocess DataFrame
+def read_and_preprocess_dataframe():
+    dataframe = pd.read_csv("data/scan.csv")
+    dataframe[['volume_dollars_1day', 'avg_volume_10_days', 'volume_cal']] = dataframe[
+        ['volume_dollars_1day', 'avg_volume_10_days', 'volume_cal']
+    ].apply(pd.to_numeric, errors='coerce')
+    return dataframe
 
-# Function to display DataFrame in a beautiful way
+# Function to filter DataFrame
+def filter_dataframe(dataframe):
+    filtered_df = dataframe[dataframe['volume_dollars_1day'] > 20000]
+    filtered_df = filtered_df[filtered_df['is_10_below_20_mv_10_days'] == 0]
+    top_count = int(TOP_PERCENTAGE * len(filtered_df))
+    return filtered_df.head(top_count)[:TOP_COUNT][COLUMNS_TO_DISPLAY]
+
+# Function to display DataFrame
 def display_dataframe(df):
     table = tabulate(df, headers='keys', tablefmt='fancy_grid')
     print(table)
 
-# Function to update the dataframe and display it
+# Function to update and display DataFrame
 def update_and_display():
-    df = update_dataframe()
+    df = filter_dataframe(read_and_preprocess_dataframe())
     display_dataframe(df)
-    
+
 # Function to run `scan.py` in the background every 15 minutes
 def run_scan():
-    threading.Timer(900, run_scan).start()
-    subprocess.Popen(["/opt/homebrew/bin/python3", "scan.py", "170" ],stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
- 
+    threading.Timer(SCAN_INTERVAL_SECONDS, run_scan).start()
+    subprocess.Popen(["/opt/homebrew/bin/python3", "scan.py", "170"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
 # Function to schedule the update and display every 20 minutes
 def schedule_update_and_display():
-    threading.Timer(1200, schedule_update_and_display).start()
+    threading.Timer(UPDATE_DISPLAY_INTERVAL_SECONDS, schedule_update_and_display).start()
     update_and_display()
 
 # Start the background scan
