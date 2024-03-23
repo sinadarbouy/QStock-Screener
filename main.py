@@ -38,7 +38,7 @@ def update_and_display():
 # Function to run `scan.py` in the background every 15 minutes
 def run_scan():
     threading.Timer(SCAN_INTERVAL_SECONDS, run_scan).start()
-    subprocess.Popen(["/opt/homebrew/bin/python3", "scan.py", "170"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.Popen(["/opt/homebrew/bin/python3", "scripts/scan.py", "170"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 # Function to schedule the update and display every 20 minutes
 def schedule_update_and_display():

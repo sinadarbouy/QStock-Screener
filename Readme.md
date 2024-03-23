@@ -23,16 +23,15 @@ The `pre_scan` function reads a NASDAQ CSV file to identify stocks. It specifica
 To execute the script, simply run:
 
 ```bash
-python pre-scan.py
+python scripts/pre-scan.py
 ```
 After execution, the script will generate a new CSV file named pre_scan.csv in the data directory containing the processed data.
 
 ## Scan
 ```bash
-python scan.py <max_price>
+python scripts/scan.py <max_price>
 ```
 Replace <max_price> with the maximum price you want to filter the stocks by.
-
 
 ### Description
 The script performs the following tasks:
