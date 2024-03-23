@@ -57,7 +57,7 @@ def save_symbol_history_chart(symbol):
 def main():
     # Check if there are arguments passed
     if len(sys.argv) < 2:
-        print("Usage: python scan.py <symbol>")
+        print("Usage: python plot.py <symbol>")
         return
 
     # Retrieve the argument passed
