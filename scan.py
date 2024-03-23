@@ -1,5 +1,8 @@
 import yfinance as yf
 import pandas as pd
+import multiprocessing
+import numpy as np
+import sys
 
 def calculate_adr_20(hist):
   sum = 0
@@ -26,11 +29,6 @@ def check_move_higher(symbol):
     percentage_change = ((stock_data['Close'].iloc[-1] - stock_data['Close'].iloc[0]) / stock_data['Close'].iloc[0]) * 100
     
     return percentage_change
-    # Check if the percentage change is greater than 30%
-    if percentage_change > 30:
-        print(f"{symbol} has moved more than 30% higher in the past 3 months.")
-    else:
-        print(f"{symbol} hasn't moved more than 30% higher in the past 3 months.")
 
 def is_10_below_20(ticker):
   ticker['MA10'] = ticker['Close'].rolling(window=10).mean()
@@ -59,69 +57,62 @@ def is_higher_low(ticker):
     return 0
   
 def filter_stocks(ticker):
-  # Increment the row count and print it
-  dataframe.row_count += 1
-  print("Processing row:", dataframe.row_count)
-  try:
-    stock = yf.Ticker(ticker["Symbol"])
+    try:
+        stock = yf.Ticker(ticker["Symbol"])
+        hist = stock.history(period="2mo")
+        
+        if hist.shape[0] <= 22:
+            raise ValueError("Historical data not available for 22 days.")
+        
+        adr_pct_20_days = calculate_adr_20(hist.tail(20))
+        if adr_pct_20_days <= 5:
+            raise ValueError("ADR percentage for 20 days is too low.")
 
-    hist = stock.history(period="2mo")
-
-    if hist.shape[0] <= 22:
-      return None, None, None, None, None, None, None, None
-
-    adr_pct_20_days = calculate_adr_20(hist.tail(20))
-    if adr_pct_20_days <= 5:
-        return None, None, None, None, None, None, None, None
-
-    volume_dollars_1day = hist['Close'][0] * hist['Volume'][0] / 100
-    # if volume_dollars_1day <= 3000:
-    #   return pd.Series([None, None, None, None, None])
+        volume_dollars_1day = hist['Close'][0] * hist['Volume'][0] / 100
+        is_10_below_20_mv_10_days = is_10_below_20(hist)
+        is_higher_low_5_days = is_higher_low(hist)
+        avg_volume_10_days= stock.info['averageVolume10days']
+        volume_cal= stock.info['volume']
+        price_growth_one_month = hist['Close'][0] / min(hist['Low'][:-22])
+        percentage_change_3months = check_move_higher(ticker["Symbol"])
+    except Exception as e:
+        print(f"Exception processing {ticker['Symbol']}: {e}")
+        return pd.Series([None]*9, index=['Symbol','adr_pct_20_days', 'volume_dollars_1day', 'price_growth_one_month', 'move_higher_3_months_percent', 'avg_volume_10_days', 'volume_cal', 'is_10_below_20_mv_10_days', 'is_higher_low_5_days'])
     
-    # 10 days below 20 days -> no trading
-    is_10_below_20_mv_10_days = is_10_below_20(hist)
-    is_higher_low_5_days = is_higher_low(hist)
-    
-    avg_volume_10_days= stock.info['averageVolume10days']
-    volume_cal= stock.info['volume']
-    # avg_volume_30_days = calculate_average_volume(ticker["Symbol"]) #averageVolume10days
-    # if avg_volume_30_days > stock.info["volume"] * 1.5: # This could indicate lower liquidity and potentially weaker breakout if it were to happen.
-    #     return pd.Series([None, None, None, None])
+    return pd.Series([ticker["Symbol"],adr_pct_20_days, volume_dollars_1day, price_growth_one_month, percentage_change_3months, avg_volume_10_days, volume_cal, is_10_below_20_mv_10_days, is_higher_low_5_days], 
+                     index=['Symbol','adr_pct_20_days', 'volume_dollars_1day', 'price_growth_one_month', 'move_higher_3_months_percent', 'avg_volume_10_days', 'volume_cal', 'is_10_below_20_mv_10_days', 'is_higher_low_5_days'])
 
-    price_growth_one_month = hist['Close'][0] / min(hist['Low'][:-22])
-    
-    percentage_change_3months = check_move_higher(ticker["Symbol"])
-    
-    return adr_pct_20_days, volume_dollars_1day, price_growth_one_month, percentage_change_3months, avg_volume_10_days, volume_cal, is_10_below_20_mv_10_days, is_higher_low_5_days
-  except:
-    return None, None, None, None, None, None, None, None
-  
-  
 def scan(dataframe):
-  print("after prescan:",len(dataframe))
-  # Initialize row_count attribute
-  dataframe.row_count = 0
+    print("after prescan:",len(dataframe))
+    dataframe = dataframe[:100]
+    num_cores = multiprocessing.cpu_count()
+    chunks = np.array_split(dataframe, num_cores) 
+    
+    with multiprocessing.Pool(num_cores) as pool:
+        results = pool.map(apply_filter, chunks)
+    result_df = pd.concat(results)
+    result_df = result_df.dropna()  # Drop rows with NaN values
+    result_df = result_df[result_df['move_higher_3_months_percent'] >= 30]
+    sorted_df = result_df.sort_values(by='price_growth_one_month', ascending=False)
+    sorted_df.to_csv('data/scan.csv', index=False)
+    print("Scan completed.")
 
-  dataframe[['adr_pct_20_days', 'volume_dollars_1day', 'price_growth_one_month','move_higher_3_months_percent', 'avg_volume_10_days', 'volume_cal', 'is_10_below_20_mv_10_days', 'is_higher_low_5_days']] = dataframe.apply(lambda row: filter_stocks(row), axis=1, result_type='expand')
+def apply_filter(chunk):
+    return chunk.apply(filter_stocks, axis=1)
 
-  # Drop rows where adr_pct_20_days is None
-  dataframe = dataframe[dataframe['adr_pct_20_days'].notna()]
-  dataframe = dataframe[dataframe['volume_dollars_1day'].notna()]
-  dataframe = dataframe[dataframe['price_growth_one_month'].notna()]
-  
+if __name__ == '__main__':
+    if len(sys.argv) < 2:
+        print("Usage: python scan.py <max_price>")
+        sys.exit(1)
 
-  dataframe = dataframe[dataframe['move_higher_3_months_percent'] >= 30]
+    try:
+        max_price = int(sys.argv[1])
+    except ValueError:
+        print("Please provide a valid price.")
+        sys.exit(1)
+    
+    dataframe = pd.read_csv("data/pre_scan.csv")
+    dataframe = dataframe[dataframe["currentPrice"] < max_price]
+    dataframe = dataframe[dataframe["currentPrice"] != 0]
 
-  # Sort the DataFrame based on 'price_growth_one_month' column in descending order
-  sorted_df = dataframe.sort_values(by='price_growth_one_month', ascending=False)
-
-  # Calculate the number of rows corresponding to the top 27% of the data
-  top_27_percent = int(0.27 * len(sorted_df))
-
-  sorted_df.to_csv('data/scan.csv', index=False)
-
-dataframe = pd.read_csv("data/pre_scan.csv")
-dataframe = dataframe[dataframe["currentPrice"] < 170]
-dataframe = dataframe[dataframe["currentPrice"] != 0]
-scan(dataframe)
-# pre_scan()
+    scan(dataframe)
