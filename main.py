@@ -2,6 +2,7 @@ import pandas as pd
 from tabulate import tabulate
 import threading
 import subprocess
+import os
 
 # Constants
 SCAN_INTERVAL_SECONDS = 900  # 15 minutes
@@ -28,6 +29,7 @@ def filter_dataframe(dataframe):
 # Function to display DataFrame
 def display_dataframe(df):
     table = tabulate(df, headers='keys', tablefmt='fancy_grid')
+    os.system('clear')
     print(table)
 
 # Function to update and display DataFrame
