@@ -1,6 +1,8 @@
 import pandas as pd
 from datetime import datetime, timedelta
 import yfinance as yf
+from tabulate import tabulate
+import os
 
 
 
@@ -23,7 +25,8 @@ def sell_strategy_day(symbol,start_date,quantity):
   purchase_date = datetime.strptime(start_date, "%m/%d/%Y")
   days_since_purchase = (datetime.today() - purchase_date).days
   if days_since_purchase >= 3 and days_since_purchase <= 5:
-    print(f"{symbol} - Sell {int(quantity/3)} to {int(quantity/2)} of the position and move stop loss to break even.")
+    return f"SELL {int(quantity/3)} to {int(quantity/2)} of the position and move stop loss to break even."
+  return "HOLD"
     
 def is_close_below_moving_average(stock_symbol, moving_average_period):
     # Fetch historical data for the stock
@@ -35,7 +38,7 @@ def is_close_below_moving_average(stock_symbol, moving_average_period):
     
     last_date = historical_data.tail(1)
 
-    if last_date['Close'] < last_date['Moving_Average']:
+    if float(last_date['Close']) < float(last_date['Moving_Average']):
       return True  # Close below moving average
     return False
   
@@ -46,12 +49,24 @@ def is_price_below_stop_loss(stock_symbol, stop_loss_price):
         return True
     return False
 
+# Function to display DataFrame
+def display_dataframe(df):
+    table = tabulate(df, headers='keys', tablefmt='fancy_grid')
+    os.system('clear')
+    print(table)
+
 # Read stock data from CSV
 stock_data = pd.read_csv('holding.csv')
 for index, row in stock_data.iterrows():
-  stop_loss_price = calculate_stop_loss(row['symbol'],row['purchase_date'])
-  _is_price_below_stop_loss = is_price_below_stop_loss(row['symbol'], stop_loss_price)
-  sell_strategy_day(row['symbol'],row['purchase_date'],row['quantity'])
-  is_close_below_moving_average_10 = is_close_below_moving_average(row['symbol'], 10)
-  is_close_below_moving_average_10 = is_close_below_moving_average(row['symbol'], 10)
+    stop_loss_price = calculate_stop_loss(row['symbol'], row['purchase_date'])
+    stock_data.loc[index, "stop_loss"] = stop_loss_price
+    stock_data.loc[index, "below_stop_loss"] = is_price_below_stop_loss(row['symbol'], stop_loss_price)
+    stock_data.loc[index, "below_mv_10"] = is_close_below_moving_average(row['symbol'], 10)
+    stock_data.loc[index, "below_mv_20"] = is_close_below_moving_average(row['symbol'], 20)
+    decision = sell_strategy_day(row['symbol'], row['purchase_date'], row['quantity'])
+    if stock_data.loc[index, "below_stop_loss"] or stock_data.loc[index, "below_mv_10"] or stock_data.loc[index, "below_mv_20"]:
+        decision = "SELL ALL"
+    stock_data.loc[index, "Decision"] = decision
+
+display_dataframe(stock_data)
 
