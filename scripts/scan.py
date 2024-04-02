@@ -9,7 +9,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 def calculate_adr_20(hist):
-    adr_pct = 100 * (hist['High'] / hist['Low']).mean() - 1
+    adr_pct = 100 * ((hist['High'] / hist['Low']).mean() - 1)
     return adr_pct
 
 def calculate_average_volume(stock_symbol):
