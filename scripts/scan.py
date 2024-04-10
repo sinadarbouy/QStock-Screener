@@ -35,14 +35,18 @@ def is_higher_low(ticker):
 def filter_stocks(ticker):
     try:
         stock = yf.Ticker(ticker["Symbol"])
-        hist = stock.history(period="2mo")
-        
+        hist = stock.history(period="3mo")
         if hist.shape[0] <= 22:
             raise ValueError("Historical data not available for 22 days.")
         
         adr_pct_20_days = calculate_adr_20(hist.tail(20))
         if adr_pct_20_days <= 5:
             raise ValueError("ADR percentage for 20 days is too low.")
+        
+        #if chart below 50 days moving average, skip
+        if len(hist['Close']) > 50:
+            if hist['Close'][0] < hist['Close'].rolling(window=50).mean()[-1]:
+                raise ValueError("Stock is below 50 days moving average.")
 
         volume_dollars_1day = hist['Close'][0] * hist['Volume'][0] / 100
         is_10_below_20_mv_10_days = is_10_below_20(hist)
@@ -86,7 +90,6 @@ if __name__ == '__main__':
     except ValueError:
         print("Please provide a valid price.")
         sys.exit(1)
-    
     dataframe = pd.read_csv("data/pre_scan.csv")
     dataframe = dataframe[(dataframe["currentPrice"] < max_price) & (dataframe["currentPrice"] != 0)]
 
