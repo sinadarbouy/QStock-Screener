@@ -43,7 +43,7 @@ def update_and_display(volume_dollars_1day):
 
 # Function to run `scan.py` in the background every 15 minutes
 def run_scan(max_price):
-    threading.Timer(SCAN_INTERVAL_SECONDS, run_scan).start()
+    threading.Timer(SCAN_INTERVAL_SECONDS, run_scan,max_price).start()
     subprocess.Popen(["python3", "scripts/scan.py", f"${max_price}"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 # Function to schedule the update and display every 20 minutes
