@@ -48,7 +48,7 @@ def run_scan(max_price):
 
 # Function to schedule the update and display every 20 minutes
 def schedule_update_and_display(volume_dollars_1day):
-    threading.Timer(UPDATE_DISPLAY_INTERVAL_SECONDS, schedule_update_and_display).start()
+    threading.Timer(UPDATE_DISPLAY_INTERVAL_SECONDS, schedule_update_and_display,volume_dollars_1day).start()
     update_and_display(volume_dollars_1day)
 
 def main():
