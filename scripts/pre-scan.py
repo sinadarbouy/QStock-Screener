@@ -16,7 +16,7 @@ def calculate_prices_for_chunk(chunk):
 
 def pre_scan():
     # Making dataframe  
-    df = pd.read_csv("data/nasdaq_screener_1710370048684.csv")
+    df = pd.read_csv("data/nasdaq_screener_1720465611392.csv")
 
     print("Pre scan start:", len(df))
     
